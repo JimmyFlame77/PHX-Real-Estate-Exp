@@ -1,1 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phoenix Area Real Estate Target Explorer & Map</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --primary-blue: #73a5d8;
+            --dark-bg: #14161a;
+            --text-main: #2c3e50;
+            --bg-light: #eaeff2;
+            --highlight-green: #2ecc71;
+            --muted-gray: #94a3b8;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-light);
+            margin: 0;
+            padding: 30px 15px;
+            color: var(--text-main);
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: var(--dark-bg);
+            color: #ffffff;
+            padding: 25px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 6px solid var(--primary-blue);
+        }
+        .header-text h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .header-text p {
+            margin: 6px 0 0 0;
+            color: #a0aab5;
+            font-size: 14px;
+        }
+        .logo {
+            height: 65px;
+            object-fit: contain;
+        }
+        .content {
+            padding: 30px;
+        }
+        .controls {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+            padding: 25px;
+            background-color: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        .control-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1em;
+        }
+        .val-display {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 1em;
+            background: var(--primary-blue);
+            padding: 5px 12px;
+            border-radius: 6px;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 22px;
+            width: 22px;
+            border-radius: 50%;
+            background: var(--dark-bg);
+            cursor: pointer;
+            margin-top: -8px;
+            border: 2px solid var(--primary-blue);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .viz-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        @media (max-width: 900px) {
+            .viz-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .panel {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #475569;
+            border-left: 4px solid var(--primary-blue);
+            padding-left: 10px;
+        }
+        .plot-window {
+            width: 100%;
+            height: 550px;
+        }
+    </style>
+</head>
+<body>
 
+<div class="container">
+    <div class="header">
+        <div class="header-text">
+            <h1>Phoenix & Surrounding Area Target Explorer</h1>
+            <p>Interactive Market Analysis: Demographics & Geographic Real Estate Mapping</p>
+        </div>
+        <img src="logo.png" alt="Proxy Marketing & Tech Logo" class="logo">
+    </div>
+
+    <div class="content">
+        <div class="controls">
+            <div class="control-group">
+                <label>
+                    <span>Minimum Median Income</span>
+                    <span id="income-val" class="val-display">$125,000</span>
+                </label>
+                <input type="range" id="income-slider" min="50000" max="200000" step="5000" value="125000">
+            </div>
+            <div class="control-group">
+                <label>
+                    <span>Minimum Home Value</span>
+                    <span id="home-val" class="val-display">$550,000</span>
+                </label>
+                <input type="range" id="home-slider" min="300000" max="900000" step="10000" value="550000">
+            </div>
+        </div>
+
+        <div class="viz-grid">
+            <div class="panel">
+                <div class="panel-title">Demographic Analytics (Income vs Value Crosshairs)</div>
+                <div id="plot-scatter" class="plot-window"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">Geographic Heat Map (15-Mile Radius Context)</div>
+                <div id="plot-map" class="plot-window"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Expanded dataset including target zip codes and surrounding towns/neighborhoods
+    const data = [
+        // Target Zip Codes
+        { name: 'Phoenix (21131)', income: 197619, homeValue: 799900, lat: 39.5162, lon: -76.6150, isZip: true },
+        { name: 'Monkton (21111)', income: 136304, homeValue: 859000, lat: 39.5779, lon: -76.6144, isZip: true },
+        { name: 'Baldwin (21013)', income: 171354, homeValue: 649950, lat: 39.5012, lon: -76.4664, isZip: true },
+        { name: 'Fallston (21047)', income: 157500, homeValue: 685000, lat: 39.5276, lon: -76.4255, isZip: true },
+        { name: 'Glen Arm (21057)', income: 145924, homeValue: 692000, lat: 39.4446, lon: -76.4975, isZip: true },
+        { name: 'Lutherville-Timonium (21093)', income: 125528, homeValue: 550000, lat: 39.4398, lon: -76.6236, isZip: true },
+        { name: 'Sparks Glencoe (21152)', income: 121350, homeValue: 572000, lat: 39.5415, lon: -76.6386, isZip: true },
+        { name: 'Cockeysville (21030)', income: 89000, homeValue: 660000, lat: 39.4812, lon: -76.6439, isZip: true },
+        
+        // Surrounding Connecting Towns & Neighborhoods
+        { name: 'Jacksonville', income: 168400, homeValue: 635000, lat: 39.4815, lon: -76.5644, isZip: false },
+        { name: 'Sweet Air', income: 152000, homeValue: 610000, lat: 39.4970, lon: -76.5310, isZip: false },
+        { name: 'Hydes', income: 138000, homeValue: 595000, lat: 39.4796, lon: -76.4627, isZip: false },
+        { name: 'Hunt Valley', income: 115000, homeValue: 520000, lat: 39.4934, lon: -76.6561, isZip: false },
+        { name: 'Mays Chapel', income: 108000, homeValue: 490000, lat: 39.4562, lon: -76.6661, isZip: false },
+        { name: 'Kingsville', income: 124000, homeValue: 545000, lat: 39.4473, lon: -76.4130, isZip: false },
+        { name: 'Hampton', income: 149500, homeValue: 599000, lat: 39.4162, lon: -76.5861, isZip: false },
+        { name: 'Towson', income: 99500, homeValue: 460000, lat: 39.3929, lon: -76.6077, isZip: false },
+        { name: 'Jarrettsville', income: 120500, homeValue: 515000, lat: 39.6054, lon: -76.4786, isZip: false },
+        { name: 'Bel Air', income: 104000, homeValue: 435000, lat: 39.5359, lon: -76.3483, isZip: false }
+    ];
+
+    const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+
+    function updateVisuals() {
+        const incomeThreshold = parseInt(document.getElementById('income-slider').value);
+        const homeThreshold = parseInt(document.getElementById('home-slider').value);
+        
+        document.getElementById('income-val').innerText = formatCurrency(incomeThreshold);
+        document.getElementById('home-val').innerText = formatCurrency(homeThreshold);
+
+        // Map status
+        const matches = data.map(d => d.income >= incomeThreshold && d.homeValue >= homeThreshold);
+        const colors = matches.map(m => m ? '#2ecc71' : '#94a3b8');
+        const sizes = matches.map(m => m ? 20 : 11);
+        const opacities = matches.map(m => m ? 1.0 : 0.6);
+        
+        const hoverLabels = data.map(d => {
+            const status = (d.income >= incomeThreshold && d.homeValue >= homeThreshold) ? '<b>🟢 MEETS CRITERIA</b>' : '⚪ Below Target Threshold';
+            return `${status}<br><b>${d.name}</b><br>Median Income: ${formatCurrency(d.income)}<br>Median Home Value: ${formatCurrency(d.homeValue)}`;
+        });
+
+        // 1. SCATTER PLOT UPDATE
+        const scatterTrace = {
+            x: data.map(d => d.income),
+            y: data.map(d => d.homeValue),
+            mode: 'markers+text',
+            type: 'scatter',
+            text: data.map(d => d.name),
+            textposition: 'top center',
+            hoverinfo: 'text',
+            hovertext: hoverLabels,
+            textfont: { family: 'Segoe UI, sans-serif', size: 11, color: '#475569' },
+            marker: {
+                size: sizes.map(s => s * 0.85),
+                color: colors,
+                opacity: opacities,
+                line: { color: matches.map(m => m ? '#27ae60' : '#64748b'), width: 2 }
+            }
+        };
+
+        const scatterLayout = {
+            xaxis: { title: 'Median Household Income ($)', range: [40000, 215000], tickformat: '$,', gridcolor: '#f1f5f9', zeroline: false },
+            yaxis: { title: 'Median Home Value ($)', range: [350000, 930000], tickformat: '$,', gridcolor: '#f1f5f9', zeroline: false },
+            shapes: [
+                { type: 'line', x0: incomeThreshold, y0: 350000, x1: incomeThreshold, y1: 930000, line: { color: '#e74c3c', width: 2, dash: 'dash' } },
+                { type: 'line', x0: 40000, y0: homeThreshold, x1: 215000, y1: homeThreshold, line: { color: '#e74c3c', width: 2, dash: 'dash' } }
+            ],
+            annotations: [
+                { x: incomeThreshold + 3000, y: 900000, text: 'Income Cutoff', showarrow: false, font: { color: '#e74c3c', size: 11 }, xanchor: 'left' },
+                { x: 45000, y: homeThreshold + 12000, text: 'Value Cutoff (Latitude)', showarrow: false, font: { color: '#e74c3c', size: 11 }, yanchor: 'bottom' }
+            ],
+            plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff', hovermode: 'closest',
+            margin: { t: 10, b: 50, l: 70, r: 20 }, font: { family: 'Segoe UI, sans-serif' }
+        };
+
+        Plotly.react('plot-scatter', [scatterTrace], scatterLayout, {responsive: true, displayModeBar: false});
+
+        // 2. GEOGRAPHIC MAP UPDATE
+        const mapTrace = {
+            type: 'scattermapbox',
+            lat: data.map(d => d.lat),
+            lon: data.map(d => d.lon),
+            mode: 'markers+text',
+            text: data.map(d => d.name.split(' ')[0]), // Keep map text short
+            textposition: 'top center',
+            hoverinfo: 'text',
+            hovertext: hoverLabels,
+            textfont: { family: 'Segoe UI, sans-serif', size: 11, fontweight: 'bold', color: '#1e293b' },
+            marker: {
+                size: sizes,
+                color: colors,
+                opacity: opacities,
+                line: { color: '#ffffff', width: 2 }
+            }
+        };
+
+        const mapLayout = {
+            mapbox: {
+                style: "open-street-map",
+                center: { lat: 39.49, lon: -76.53 }, // Centered to capture the 15-mile corridor gracefully
+                zoom: 10.2
+            },
+            margin: { t: 0, b: 0, l: 0, r: 0 },
+            showlegend: false,
+            paper_bgcolor: '#ffffff'
+        };
+
+        Plotly.react('plot-map', [mapTrace], mapLayout, {responsive: true, displayModeBar: false});
+    }
+
+    // Event Listeners
+    document.getElementById('income-slider').addEventListener('input', updateVisuals);
+    document.getElementById('home-slider').addEventListener('input', updateVisuals);
+
+    // Initial load
+    updateVisuals();
+</script>
+
+</body>
+</html>
