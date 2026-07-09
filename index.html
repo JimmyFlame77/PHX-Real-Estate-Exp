@@ -59,7 +59,6 @@
             padding: 30px;
         }
         
-        /* Dashboard Control Layout */
         .control-panel {
             background-color: #f8fafc;
             border-radius: 12px;
@@ -152,7 +151,6 @@
             border-radius: 3px;
         }
         
-        /* Summary Stat Badge */
         .match-badge-container {
             display: flex;
             justify-content: center;
@@ -203,7 +201,7 @@
         }
         
         .summary-panel {
-            grid-column: 1 / -1; /* Spans full width of the grid */
+            grid-column: 1 / -1; 
         }
 
         .panel-title {
@@ -226,8 +224,62 @@
             width: 100%;
             height: 580px;
         }
+        .plot-window-map {
+            width: 100%;
+            height: 520px; /* Adjusted slightly to account for the legend */
+        }
 
-        /* Aggregate Stats CSS */
+        /* --- MAP LEGEND STYLING --- */
+        .map-legend {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot.qualified { 
+            background: #d97706; 
+            border: 1.5px solid #ffffff; 
+            box-shadow: 0 0 0 1.5px #d97706; 
+        }
+        .dot.unqualified { 
+            background: #cbd5e1; 
+            border: 1.5px solid #ffffff; 
+            box-shadow: 0 0 0 1.5px #94a3b8; 
+        }
+        .gradient-legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .gradient-bar {
+            width: 120px;
+            height: 12px;
+            border-radius: 4px;
+            /* Mimics Plotly's YlOrRd colorscale */
+            background: linear-gradient(to right, #ffffcc, #ffeda0, #fed976, #feb24c, #fd8d3c, #fc4e2a, #e31a1c, #b10026);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* --- STATS PANEL --- */
         .stats-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -269,6 +321,11 @@
             .summary-panel {
                 grid-column: 1;
             }
+            .map-legend {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
@@ -278,7 +335,7 @@
     <div class="header">
         <div class="header-text">
             <h1>Proxy Marketing & Tech - Target Density Engine</h1>
-            <p>Household Volume Heatmaps, Demographic Matrices, & Geographic Expansion</p>
+            <p>235+ Node Master Matrix: Western, Northern, & Central Maryland Granularity</p>
         </div>
         <img src="logo.png" alt="Proxy Marketing & Tech Logo" class="logo">
     </div>
@@ -314,14 +371,14 @@
                         <span>Min Household Income</span>
                         <span id="income-val" class="val-display">$100,000</span>
                     </label>
-                    <input type="range" id="income-slider" min="50000" max="250000" step="5000" value="100000">
+                    <input type="range" id="income-slider" min="40000" max="250000" step="5000" value="100000">
                 </div>
                 <div class="control-group">
                     <label>
                         <span>Min Property Value</span>
                         <span id="home-val" class="val-display">$450,000</span>
                     </label>
-                    <input type="range" id="home-slider" min="200000" max="1000000" step="10000" value="450000">
+                    <input type="range" id="home-slider" min="150000" max="1000000" step="10000" value="450000">
                 </div>
                 <div class="control-group">
                     <label>
@@ -335,7 +392,7 @@
                         <span>Min Median Age Threshold</span>
                         <span id="age-val" class="val-display">35 yrs</span>
                     </label>
-                    <input type="range" id="age-slider" min="30" max="55" step="1" value="35">
+                    <input type="range" id="age-slider" min="30" max="60" step="1" value="35">
                 </div>
             </div>
         </div>
@@ -354,54 +411,322 @@
                     <span>Household Density Heatmap</span>
                     <span class="panel-subtitle">Intensity reflects volume of qualified target homes</span>
                 </div>
-                <div id="plot-map" class="plot-window"></div>
+                
+                <!-- NEW MAP LEGEND PANEL -->
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <div class="dot qualified"></div>
+                        <span>Qualified Match</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="dot unqualified"></div>
+                        <span>Screened Out</span>
+                    </div>
+                    <div class="gradient-legend">
+                        <span>Low Density</span>
+                        <div class="gradient-bar"></div>
+                        <span>High Density</span>
+                    </div>
+                </div>
+
+                <div id="plot-map" class="plot-window-map"></div>
             </div>
 
-            <!-- NEW DATA PANEL -->
             <div class="panel summary-panel">
                 <div class="panel-title">
                     <span>Aggregate Density Metrics</span>
                     <span class="panel-subtitle">Averaged demographics of all geographically qualified targets</span>
                 </div>
-                <div id="stats-container" class="stats-container">
-                    <!-- Javascript injects density stats here dynamically -->
-                </div>
+                <div id="stats-container" class="stats-container"></div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
+    // 235+ MAJOR ANCHOR ZIP CODES
+    // Complete macro and micro coverage of Western, Central, and Northern Maryland
     const locations = [
-        { zip: '21131', name: 'Phoenix', income: 197619, homeValue: 799900, lat: 39.5162, lon: -76.6150, homeOwnRate: 94, medianAge: 46.2, households: 4500 },
+        // --- WESTERN MARYLAND (Garrett, Allegany, Washington Counties) ---
+        { zip: '21550', name: 'Oakland', income: 55000, homeValue: 195000, lat: 39.4100, lon: -79.4000, homeOwnRate: 72, medianAge: 45.1, households: 4200 },
+        { zip: '21541', name: 'McHenry', income: 68000, homeValue: 380000, lat: 39.5500, lon: -79.3500, homeOwnRate: 81, medianAge: 48.2, households: 1800 },
+        { zip: '21520', name: 'Accident', income: 59000, homeValue: 245000, lat: 39.6300, lon: -79.3200, homeOwnRate: 75, medianAge: 44.8, households: 1100 },
+        { zip: '21536', name: 'Grantsville', income: 52000, homeValue: 180000, lat: 39.7000, lon: -79.1600, homeOwnRate: 68, medianAge: 43.5, households: 2100 },
+        { zip: '21502', name: 'Cumberland', income: 48000, homeValue: 145000, lat: 39.6500, lon: -78.7600, homeOwnRate: 65, medianAge: 42.5, households: 12500 },
+        { zip: '21532', name: 'Frostburg', income: 51000, homeValue: 155000, lat: 39.6500, lon: -78.9200, homeOwnRate: 58, medianAge: 32.1, households: 3800 },
+        { zip: '21539', name: 'Lonaconing', income: 42000, homeValue: 110000, lat: 39.5600, lon: -78.9800, homeOwnRate: 70, medianAge: 44.2, households: 1200 },
+        { zip: '21545', name: 'Mount Savage', income: 49000, homeValue: 125000, lat: 39.7000, lon: -78.8800, homeOwnRate: 72, medianAge: 46.1, households: 900 },
+        { zip: '21740', name: 'Hagerstown', income: 52000, homeValue: 210000, lat: 39.6400, lon: -77.7200, homeOwnRate: 50, medianAge: 38.3, households: 18000 },
+        { zip: '21742', name: 'Hagerstown (North)', income: 75000, homeValue: 310000, lat: 39.6700, lon: -77.6900, homeOwnRate: 70, medianAge: 43.1, households: 11000 },
+        { zip: '21713', name: 'Boonsboro', income: 98000, homeValue: 395000, lat: 39.5100, lon: -77.6500, homeOwnRate: 82, medianAge: 41.5, households: 3200 },
+        { zip: '21750', name: 'Hancock', income: 49000, homeValue: 175000, lat: 39.7000, lon: -78.1700, homeOwnRate: 74, medianAge: 46.8, households: 2100 },
+        { zip: '21795', name: 'Williamsport', income: 61000, homeValue: 240000, lat: 39.6000, lon: -77.8100, homeOwnRate: 66, medianAge: 44.0, households: 3500 },
+        { zip: '21722', name: 'Clear Spring', income: 65000, homeValue: 260000, lat: 39.6500, lon: -77.9300, homeOwnRate: 78, medianAge: 45.2, households: 2000 },
+        { zip: '21783', name: 'Smithsburg', income: 82000, homeValue: 320000, lat: 39.6500, lon: -77.5700, homeOwnRate: 80, medianAge: 41.1, households: 3800 },
+        { zip: '21734', name: 'Funkstown', income: 68000, homeValue: 230000, lat: 39.6100, lon: -77.7000, homeOwnRate: 68, medianAge: 40.5, households: 1100 },
+        { zip: '21756', name: 'Keedysville', income: 91000, homeValue: 360000, lat: 39.4800, lon: -77.7000, homeOwnRate: 85, medianAge: 42.0, households: 1500 },
+        { zip: '21782', name: 'Sharpsburg', income: 78000, homeValue: 310000, lat: 39.4500, lon: -77.7500, homeOwnRate: 76, medianAge: 44.5, households: 1600 },
+        { zip: '21711', name: 'Big Pool', income: 62000, homeValue: 250000, lat: 39.6100, lon: -78.0100, homeOwnRate: 78, medianAge: 48.0, households: 800 },
+        { zip: '21767', name: 'Maugansville', income: 75000, homeValue: 275000, lat: 39.6800, lon: -77.7500, homeOwnRate: 71, medianAge: 39.8, households: 1200 },
+
+        // --- FREDERICK COUNTY ---
+        { zip: '21701', name: 'Frederick (Central)', income: 95000, homeValue: 450000, lat: 39.4278, lon: -77.4116, homeOwnRate: 60, medianAge: 36.5, households: 22000 },
+        { zip: '21702', name: 'Frederick (North)', income: 88000, homeValue: 420000, lat: 39.4500, lon: -77.4400, homeOwnRate: 65, medianAge: 37.1, households: 15000 },
+        { zip: '21703', name: 'Frederick (Southwest)', income: 92000, homeValue: 435000, lat: 39.3800, lon: -77.4500, homeOwnRate: 68, medianAge: 35.8, households: 14500 },
+        { zip: '21704', name: 'Urbana', income: 155000, homeValue: 680000, lat: 39.3300, lon: -77.3500, homeOwnRate: 82, medianAge: 37.2, households: 9500 },
+        { zip: '21769', name: 'Middletown', income: 142000, homeValue: 590000, lat: 39.4400, lon: -77.5400, homeOwnRate: 88, medianAge: 41.5, households: 3500 },
+        { zip: '21793', name: 'Walkersville', income: 105000, homeValue: 440000, lat: 39.4800, lon: -77.3500, homeOwnRate: 82, medianAge: 40.8, households: 2800 },
+        { zip: '21771', name: 'Mount Airy', income: 145000, homeValue: 610000, lat: 39.3700, lon: -77.1500, homeOwnRate: 90, medianAge: 42.1, households: 8000 },
+        { zip: '21716', name: 'Brunswick', income: 94000, homeValue: 350000, lat: 39.3100, lon: -77.6300, homeOwnRate: 75, medianAge: 38.0, households: 3200 },
+        { zip: '21727', name: 'Emmitsburg', income: 72000, homeValue: 290000, lat: 39.7000, lon: -77.3300, homeOwnRate: 68, medianAge: 39.5, households: 1800 },
+        { zip: '21788', name: 'Thurmont', income: 86000, homeValue: 340000, lat: 39.6200, lon: -77.4100, homeOwnRate: 76, medianAge: 41.2, households: 3600 },
+        { zip: '21798', name: 'Woodsboro', income: 110000, homeValue: 420000, lat: 39.5300, lon: -77.3200, homeOwnRate: 85, medianAge: 42.5, households: 1500 },
+        { zip: '21774', name: 'New Market', income: 145000, homeValue: 580000, lat: 39.3800, lon: -77.2700, homeOwnRate: 88, medianAge: 39.1, households: 5500 },
+        { zip: '21754', name: 'Ijamsville', income: 165000, homeValue: 650000, lat: 39.3400, lon: -77.3200, homeOwnRate: 92, medianAge: 40.4, households: 3000 },
+        { zip: '21755', name: 'Jefferson', income: 125000, homeValue: 480000, lat: 39.3700, lon: -77.5300, homeOwnRate: 86, medianAge: 41.8, households: 1900 },
+        { zip: '21773', name: 'Myersville', income: 122000, homeValue: 490000, lat: 39.5000, lon: -77.5600, homeOwnRate: 85, medianAge: 41.0, households: 1800 },
+        { zip: '21780', name: 'Sabillasville', income: 74000, homeValue: 310000, lat: 39.6700, lon: -77.4600, homeOwnRate: 80, medianAge: 44.5, households: 750 },
+        { zip: '21790', name: 'Tuscarora', income: 110000, homeValue: 450000, lat: 39.2600, lon: -77.4600, homeOwnRate: 88, medianAge: 42.0, households: 500 },
+
+        // --- CARROLL COUNTY ---
+        { zip: '21157', name: 'Westminster (East)', income: 98000, homeValue: 390000, lat: 39.5700, lon: -76.9900, homeOwnRate: 76, medianAge: 40.9, households: 12000 },
+        { zip: '21158', name: 'Westminster (West)', income: 105000, homeValue: 410000, lat: 39.6000, lon: -77.0100, homeOwnRate: 78, medianAge: 41.2, households: 6500 },
+        { zip: '21102', name: 'Manchester', income: 112000, homeValue: 430000, lat: 39.6600, lon: -76.8800, homeOwnRate: 85, medianAge: 42.5, households: 4000 },
+        { zip: '21074', name: 'Hampstead', income: 108000, homeValue: 415000, lat: 39.6100, lon: -76.8400, homeOwnRate: 82, medianAge: 41.8, households: 5500 },
+        { zip: '21787', name: 'Taneytown', income: 85000, homeValue: 320000, lat: 39.6500, lon: -77.1700, homeOwnRate: 75, medianAge: 39.5, households: 3000 },
+        { zip: '21104', name: 'Marriottsville', income: 175000, homeValue: 710000, lat: 39.3500, lon: -76.9000, homeOwnRate: 92, medianAge: 43.1, households: 2800 },
+        { zip: '21784', name: 'Sykesville', income: 130000, homeValue: 540000, lat: 39.3700, lon: -76.9700, homeOwnRate: 85, medianAge: 43.0, households: 11000 },
+        { zip: '21776', name: 'New Windsor', income: 98000, homeValue: 380000, lat: 39.5400, lon: -77.1000, homeOwnRate: 80, medianAge: 42.2, households: 2200 },
+        { zip: '21797', name: 'Woodbine', income: 155000, homeValue: 650000, lat: 39.3600, lon: -77.0500, homeOwnRate: 90, medianAge: 43.5, households: 2900 },
+        { zip: '21183', name: 'Union Bridge', income: 85000, homeValue: 340000, lat: 39.5600, lon: -77.1700, homeOwnRate: 78, medianAge: 42.0, households: 1400 },
+        { zip: '21048', name: 'Finksburg', income: 125000, homeValue: 490000, lat: 39.4900, lon: -76.9000, homeOwnRate: 86, medianAge: 42.8, households: 3800 },
+
+        // --- BALTIMORE COUNTY & NORTHERN CORRIDOR ---
         { zip: '21111', name: 'Monkton', income: 136304, homeValue: 859000, lat: 39.5779, lon: -76.6144, homeOwnRate: 96, medianAge: 47.8, households: 2100 },
-        { zip: '21013', name: 'Baldwin', income: 171354, homeValue: 649950, lat: 39.5012, lon: -76.4664, homeOwnRate: 95, medianAge: 45.1, households: 1800 },
-        { zip: '21047', name: 'Fallston', income: 157500, homeValue: 685000, lat: 39.5276, lon: -76.4255, homeOwnRate: 92, medianAge: 43.9, households: 4200 },
-        { zip: '21057', name: 'Glen Arm', income: 145924, homeValue: 692000, lat: 39.4446, lon: -76.4975, homeOwnRate: 91, medianAge: 46.5, households: 2000 },
-        { zip: '21093', name: 'Lutherville', income: 125528, homeValue: 550000, lat: 39.4398, lon: -76.6236, homeOwnRate: 78, medianAge: 42.1, households: 9000 },
-        { zip: '21152', name: 'Sparks Glencoe', income: 121350, homeValue: 572000, lat: 39.5415, lon: -76.6386, homeOwnRate: 89, medianAge: 44.8, households: 2400 },
+        { zip: '21120', name: 'Parkton', income: 142000, homeValue: 610000, lat: 39.6400, lon: -76.6600, homeOwnRate: 92, medianAge: 45.4, households: 2800 },
+        { zip: '21131', name: 'Phoenix', income: 197619, homeValue: 799900, lat: 39.5162, lon: -76.6150, homeOwnRate: 94, medianAge: 46.2, households: 4500 },
+        { zip: '21093', name: 'Lutherville-Timonium', income: 125528, homeValue: 550000, lat: 39.4398, lon: -76.6236, homeOwnRate: 78, medianAge: 42.1, households: 9000 },
         { zip: '21030', name: 'Cockeysville', income: 89000, homeValue: 660000, lat: 39.4812, lon: -76.6439, homeOwnRate: 51, medianAge: 37.4, households: 11000 },
         { zip: '21031', name: 'Hunt Valley', income: 115000, homeValue: 520000, lat: 39.4934, lon: -76.6561, homeOwnRate: 62, medianAge: 39.9, households: 3000 },
-        { zip: '21204', name: 'Towson', income: 99500, homeValue: 460000, lat: 39.4014, lon: -76.6019, homeOwnRate: 58, medianAge: 34.2, households: 22000 },
-        { zip: '21084', name: 'Jarrettsville', income: 120500, homeValue: 515000, lat: 39.6054, lon: -76.4786, homeOwnRate: 90, medianAge: 42.7, households: 4100 },
-        { zip: '21014', name: 'Bel Air', income: 104000, homeValue: 435000, lat: 39.5359, lon: -76.3483, homeOwnRate: 72, medianAge: 40.2, households: 15000 },
-        { zip: '21050', name: 'Forest Hill', income: 118000, homeValue: 485000, lat: 39.5812, lon: -76.3844, homeOwnRate: 86, medianAge: 41.8, households: 7500 },
+        { zip: '21152', name: 'Sparks Glencoe', income: 121350, homeValue: 572000, lat: 39.5415, lon: -76.6386, homeOwnRate: 89, medianAge: 44.8, households: 2400 },
+        { zip: '21204', name: 'Towson (Central)', income: 99500, homeValue: 460000, lat: 39.4014, lon: -76.6019, homeOwnRate: 58, medianAge: 34.2, households: 22000 },
+        { zip: '21286', name: 'Towson (East)', income: 86000, homeValue: 360000, lat: 39.4000, lon: -76.5700, homeOwnRate: 55, medianAge: 36.5, households: 14000 },
         { zip: '21208', name: 'Pikesville', income: 101000, homeValue: 415000, lat: 39.3750, lon: -76.7240, homeOwnRate: 68, medianAge: 41.8, households: 9500 },
         { zip: '21117', name: 'Owings Mills', income: 92500, homeValue: 385000, lat: 39.4195, lon: -76.7842, homeOwnRate: 55, medianAge: 36.1, households: 16000 },
-        { zip: '21044', name: 'Columbia', income: 128500, homeValue: 495000, lat: 39.2150, lon: -76.8580, homeOwnRate: 66, medianAge: 38.5, households: 38000 },
-        { zip: '21042', name: 'Ellicott City', income: 154000, homeValue: 620000, lat: 39.2694, lon: -76.8310, homeOwnRate: 84, medianAge: 42.6, households: 25000 },
-        { zip: '21157', name: 'Westminster', income: 98000, homeValue: 390000, lat: 39.5750, lon: -76.9960, homeOwnRate: 76, medianAge: 40.9, households: 12000 },
-        { zip: '21401', name: 'Annapolis', income: 122000, homeValue: 610000, lat: 38.9780, lon: -76.5310, homeOwnRate: 64, medianAge: 40.1, households: 19000 },
-        { zip: '21075', name: 'Elkridge', income: 119000, homeValue: 440000, lat: 39.2010, lon: -76.7510, homeOwnRate: 73, medianAge: 37.8, households: 11500 },
-        { zip: '20814', name: 'Bethesda', income: 185000, homeValue: 920000, lat: 38.9950, lon: -77.1000, homeOwnRate: 62, medianAge: 40.5, households: 18000 },
-        { zip: '20850', name: 'Rockville', income: 132000, homeValue: 650000, lat: 39.0840, lon: -77.1528, homeOwnRate: 66, medianAge: 39.2, households: 28000 },
-        { zip: '20901', name: 'Silver Spring', income: 110000, homeValue: 550000, lat: 39.0234, lon: -77.0115, homeOwnRate: 71, medianAge: 37.6, households: 16000 },
-        { zip: '21701', name: 'Frederick', income: 95000, homeValue: 450000, lat: 39.4278, lon: -77.4116, homeOwnRate: 60, medianAge: 36.5, households: 22000 },
-        { zip: '21804', name: 'Salisbury', income: 65000, homeValue: 260000, lat: 38.3664, lon: -75.5670, homeOwnRate: 52, medianAge: 34.1, households: 18000 },
-        { zip: '20601', name: 'Waldorf', income: 108000, homeValue: 410000, lat: 38.6186, lon: -76.9038, homeOwnRate: 76, medianAge: 38.4, households: 24000 },
-        { zip: '20715', name: 'Bowie', income: 128000, homeValue: 490000, lat: 38.9710, lon: -76.7375, homeOwnRate: 85, medianAge: 41.2, households: 14000 },
+        { zip: '21136', name: 'Reisterstown', income: 95000, homeValue: 390000, lat: 39.4600, lon: -76.8200, homeOwnRate: 68, medianAge: 38.5, households: 12500 },
         { zip: '21228', name: 'Catonsville', income: 102000, homeValue: 420000, lat: 39.2687, lon: -76.7456, homeOwnRate: 72, medianAge: 38.9, households: 15500 },
-        { zip: '21601', name: 'Easton', income: 82000, homeValue: 390000, lat: 38.7758, lon: -76.0592, homeOwnRate: 68, medianAge: 46.5, households: 8000 }
+        { zip: '21234', name: 'Parkville', income: 82000, homeValue: 310000, lat: 39.3900, lon: -76.5400, homeOwnRate: 65, medianAge: 39.0, households: 24000 },
+        { zip: '21128', name: 'Perry Hall', income: 108000, homeValue: 410000, lat: 39.4100, lon: -76.4700, homeOwnRate: 81, medianAge: 40.5, households: 11000 },
+        { zip: '21162', name: 'White Marsh', income: 95000, homeValue: 380000, lat: 39.3800, lon: -76.4300, homeOwnRate: 70, medianAge: 37.8, households: 6000 },
+        { zip: '21220', name: 'Middle River', income: 76000, homeValue: 280000, lat: 39.3300, lon: -76.4300, homeOwnRate: 64, medianAge: 38.2, households: 18000 },
+        { zip: '21221', name: 'Essex', income: 68000, homeValue: 250000, lat: 39.3000, lon: -76.4600, homeOwnRate: 60, medianAge: 37.5, households: 16500 },
+        { zip: '21222', name: 'Dundalk', income: 62000, homeValue: 220000, lat: 39.2600, lon: -76.5100, homeOwnRate: 58, medianAge: 38.0, households: 25000 },
+        { zip: '21057', name: 'Glen Arm', income: 145924, homeValue: 692000, lat: 39.4446, lon: -76.4975, homeOwnRate: 91, medianAge: 46.5, households: 2000 },
+        { zip: '21013', name: 'Baldwin', income: 171354, homeValue: 649950, lat: 39.5012, lon: -76.4664, homeOwnRate: 95, medianAge: 45.1, households: 1800 },
+        { zip: '21227', name: 'Halethorpe', income: 84000, homeValue: 330000, lat: 39.2400, lon: -76.6700, homeOwnRate: 66, medianAge: 37.8, households: 13000 },
+        { zip: '21207', name: 'Gwynn Oak', income: 74000, homeValue: 270000, lat: 39.3300, lon: -76.7200, homeOwnRate: 58, medianAge: 38.5, households: 18000 },
+        { zip: '21244', name: 'Windsor Mill', income: 81000, homeValue: 290000, lat: 39.3300, lon: -76.7700, homeOwnRate: 62, medianAge: 36.2, households: 15500 },
+        { zip: '21133', name: 'Randallstown', income: 85000, homeValue: 310000, lat: 39.3700, lon: -76.8000, homeOwnRate: 68, medianAge: 40.1, households: 12000 },
+        { zip: '21071', name: 'Glyndon', income: 125000, homeValue: 480000, lat: 39.4800, lon: -76.8100, homeOwnRate: 82, medianAge: 43.5, households: 1200 },
+        { zip: '21153', name: 'Stevenson', income: 195000, homeValue: 880000, lat: 39.4100, lon: -76.7000, homeOwnRate: 88, medianAge: 46.8, households: 800 },
+        { zip: '21051', name: 'Fork', income: 110000, homeValue: 450000, lat: 39.4600, lon: -76.4400, homeOwnRate: 88, medianAge: 46.0, households: 1200 },
+        { zip: '21087', name: 'Kingsville', income: 125000, homeValue: 495000, lat: 39.4500, lon: -76.4100, homeOwnRate: 89, medianAge: 45.2, households: 2500 },
+        { zip: '21155', name: 'Upper Falls', income: 115000, homeValue: 460000, lat: 39.4300, lon: -76.4100, homeOwnRate: 86, medianAge: 44.0, households: 900 },
+        { zip: '21082', name: 'Hydes', income: 135000, homeValue: 560000, lat: 39.4900, lon: -76.5000, homeOwnRate: 91, medianAge: 46.5, households: 1100 },
+        { zip: '21139', name: 'Riderwood', income: 155000, homeValue: 610000, lat: 39.4100, lon: -76.6500, homeOwnRate: 88, medianAge: 47.0, households: 1400 },
+        { zip: '21022', name: 'Brooklandville', income: 165000, homeValue: 720000, lat: 39.4100, lon: -76.6600, homeOwnRate: 84, medianAge: 45.5, households: 1200 },
+        { zip: '21156', name: 'Upperco', income: 118000, homeValue: 490000, lat: 39.5600, lon: -76.7800, homeOwnRate: 87, medianAge: 43.8, households: 2000 },
+        { zip: '21053', name: 'Freeland', income: 105000, homeValue: 420000, lat: 39.6900, lon: -76.6500, homeOwnRate: 89, medianAge: 44.1, households: 1800 },
+        { zip: '21105', name: 'Maryland Line', income: 98000, homeValue: 405000, lat: 39.7100, lon: -76.6300, homeOwnRate: 88, medianAge: 45.0, households: 800 },
+        { zip: '21020', name: 'Boring', income: 102000, homeValue: 410000, lat: 39.5200, lon: -76.8100, homeOwnRate: 86, medianAge: 42.5, households: 500 },
+        { zip: '21236', name: 'Nottingham', income: 84000, homeValue: 335000, lat: 39.3800, lon: -76.4900, homeOwnRate: 68, medianAge: 38.5, households: 16000 },
+        { zip: '21237', name: 'Rosedale', income: 72000, homeValue: 290000, lat: 39.3300, lon: -76.5000, homeOwnRate: 64, medianAge: 38.0, households: 14000 },
+        { zip: '21219', name: 'Sparrows Point', income: 68000, homeValue: 275000, lat: 39.2300, lon: -76.4800, homeOwnRate: 71, medianAge: 42.1, households: 4500 },
+
+        // --- HARFORD & CECIL COUNTIES ---
+        { zip: '21014', name: 'Bel Air (Central)', income: 104000, homeValue: 435000, lat: 39.5359, lon: -76.3483, homeOwnRate: 72, medianAge: 40.2, households: 15000 },
+        { zip: '21015', name: 'Bel Air (South)', income: 118000, homeValue: 480000, lat: 39.5100, lon: -76.3100, homeOwnRate: 84, medianAge: 41.5, households: 12000 },
+        { zip: '21047', name: 'Fallston', income: 157500, homeValue: 685000, lat: 39.5276, lon: -76.4255, homeOwnRate: 92, medianAge: 43.9, households: 4200 },
+        { zip: '21050', name: 'Forest Hill', income: 118000, homeValue: 485000, lat: 39.5812, lon: -76.3844, homeOwnRate: 86, medianAge: 41.8, households: 7500 },
+        { zip: '21084', name: 'Jarrettsville', income: 120500, homeValue: 515000, lat: 39.6054, lon: -76.4786, homeOwnRate: 90, medianAge: 42.7, households: 4100 },
+        { zip: '21078', name: 'Havre de Grace', income: 91000, homeValue: 380000, lat: 39.5480, lon: -76.0910, homeOwnRate: 67, medianAge: 43.4, households: 7000 },
+        { zip: '21001', name: 'Aberdeen', income: 78000, homeValue: 310000, lat: 39.5100, lon: -76.1600, homeOwnRate: 62, medianAge: 38.5, households: 9500 },
+        { zip: '21009', name: 'Abingdon', income: 102000, homeValue: 390000, lat: 39.4600, lon: -76.2800, homeOwnRate: 78, medianAge: 37.2, households: 11000 },
+        { zip: '21085', name: 'Joppa', income: 96000, homeValue: 360000, lat: 39.4200, lon: -76.3600, homeOwnRate: 80, medianAge: 40.1, households: 8000 },
+        { zip: '21040', name: 'Edgewood', income: 68000, homeValue: 260000, lat: 39.4200, lon: -76.2800, homeOwnRate: 58, medianAge: 35.5, households: 10000 },
+        { zip: '21028', name: 'Edgewood (APG)', income: 72000, homeValue: 280000, lat: 39.4000, lon: -76.3000, homeOwnRate: 50, medianAge: 32.5, households: 1200 },
+        { zip: '21132', name: 'Whiteford', income: 88000, homeValue: 340000, lat: 39.7000, lon: -76.3300, homeOwnRate: 82, medianAge: 42.5, households: 1100 },
+        { zip: '21154', name: 'Street', income: 112000, homeValue: 460000, lat: 39.6644, lon: -76.3886, homeOwnRate: 88, medianAge: 43.1, households: 2200 },
+        { zip: '21160', name: 'Whiteford/Pylesville', income: 95000, homeValue: 360000, lat: 39.6800, lon: -76.3800, homeOwnRate: 85, medianAge: 42.0, households: 1600 },
+        { zip: '21018', name: 'Belcamp', income: 91000, homeValue: 330000, lat: 39.4700, lon: -76.2300, homeOwnRate: 72, medianAge: 38.1, households: 3000 },
+        { zip: '21027', name: 'Darlington', income: 98000, homeValue: 395000, lat: 39.6300, lon: -76.1900, homeOwnRate: 85, medianAge: 44.5, households: 1500 },
+        { zip: '21921', name: 'Elkton', income: 89500, homeValue: 345000, lat: 39.6080, lon: -75.8300, homeOwnRate: 70, medianAge: 38.2, households: 15000 },
+        { zip: '21903', name: 'Perryville', income: 82000, homeValue: 315000, lat: 39.5600, lon: -76.0700, homeOwnRate: 74, medianAge: 40.1, households: 2200 },
+        { zip: '21911', name: 'Rising Sun', income: 95000, homeValue: 375000, lat: 39.6900, lon: -76.0600, homeOwnRate: 82, medianAge: 41.0, households: 3100 },
+        { zip: '21901', name: 'North East', income: 78000, homeValue: 320000, lat: 39.6000, lon: -75.9400, homeOwnRate: 72, medianAge: 39.5, households: 4500 },
+        { zip: '21915', name: 'Chesapeake City', income: 86000, homeValue: 380000, lat: 39.5300, lon: -75.8100, homeOwnRate: 78, medianAge: 44.0, households: 1500 },
+        { zip: '21917', name: 'Colora', income: 105000, homeValue: 420000, lat: 39.6700, lon: -76.1200, homeOwnRate: 86, medianAge: 42.5, households: 1200 },
+        { zip: '21919', name: 'Earleville', income: 92000, homeValue: 360000, lat: 39.4200, lon: -75.9500, homeOwnRate: 80, medianAge: 46.2, households: 900 },
+        { zip: '21904', name: 'Port Deposit', income: 84000, homeValue: 325000, lat: 39.6200, lon: -76.1000, homeOwnRate: 75, medianAge: 41.5, households: 2100 },
+        { zip: '21918', name: 'Conowingo', income: 82000, homeValue: 310000, lat: 39.6700, lon: -76.1600, homeOwnRate: 80, medianAge: 42.0, households: 2500 },
+        { zip: '21912', name: 'Warwick', income: 95000, homeValue: 380000, lat: 39.4300, lon: -75.8100, homeOwnRate: 84, medianAge: 41.2, households: 1100 },
+        { zip: '21913', name: 'Cecilton', income: 88000, homeValue: 340000, lat: 39.3900, lon: -75.8600, homeOwnRate: 78, medianAge: 43.1, households: 1400 },
+        { zip: '21914', name: 'Charlestown', income: 85000, homeValue: 330000, lat: 39.5700, lon: -75.9700, homeOwnRate: 76, medianAge: 44.5, households: 900 },
+        { zip: '21920', name: 'Elk Mills', income: 78000, homeValue: 295000, lat: 39.6400, lon: -75.8100, homeOwnRate: 74, medianAge: 40.5, households: 800 },
+
+        // --- HOWARD COUNTY ---
+        { zip: '21044', name: 'Columbia (Central)', income: 128500, homeValue: 495000, lat: 39.2150, lon: -76.8580, homeOwnRate: 66, medianAge: 38.5, households: 16000 },
+        { zip: '21045', name: 'Columbia (East)', income: 115000, homeValue: 460000, lat: 39.2000, lon: -76.8200, homeOwnRate: 68, medianAge: 39.0, households: 18000 },
+        { zip: '21046', name: 'Columbia (South)', income: 135000, homeValue: 530000, lat: 39.1700, lon: -76.8500, homeOwnRate: 72, medianAge: 37.5, households: 10000 },
+        { zip: '21042', name: 'Ellicott City (West)', income: 154000, homeValue: 620000, lat: 39.2694, lon: -76.8310, homeOwnRate: 84, medianAge: 42.6, households: 25000 },
+        { zip: '21043', name: 'Ellicott City (East)', income: 125000, homeValue: 510000, lat: 39.2400, lon: -76.7800, homeOwnRate: 74, medianAge: 39.5, households: 16000 },
+        { zip: '21029', name: 'Clarksville', income: 215000, homeValue: 950000, lat: 39.2000, lon: -76.9300, homeOwnRate: 92, medianAge: 45.1, households: 6000 },
+        { zip: '21737', name: 'Glenelg', income: 205000, homeValue: 880000, lat: 39.2700, lon: -77.0100, homeOwnRate: 94, medianAge: 44.8, households: 2500 },
+        { zip: '21738', name: 'Glenwood', income: 210000, homeValue: 890000, lat: 39.2800, lon: -77.0300, homeOwnRate: 93, medianAge: 45.5, households: 2100 },
+        { zip: '20723', name: 'Scaggsville', income: 138000, homeValue: 560000, lat: 39.1400, lon: -76.8800, homeOwnRate: 80, medianAge: 36.8, households: 9000 },
+        { zip: '20759', name: 'Fulton', income: 200000, homeValue: 850000, lat: 39.1500, lon: -76.9200, homeOwnRate: 88, medianAge: 38.2, households: 3500 },
+        { zip: '20763', name: 'Savage', income: 105000, homeValue: 410000, lat: 39.1300, lon: -76.8200, homeOwnRate: 75, medianAge: 35.5, households: 1500 },
+        { zip: '21075', name: 'Elkridge', income: 119000, homeValue: 440000, lat: 39.2010, lon: -76.7510, homeOwnRate: 73, medianAge: 37.8, households: 11500 },
+        { zip: '20777', name: 'Highland', income: 215000, homeValue: 920000, lat: 39.1700, lon: -76.9600, homeOwnRate: 94, medianAge: 44.0, households: 1100 },
+        { zip: '21723', name: 'Cooksville', income: 185000, homeValue: 750000, lat: 39.3100, lon: -77.0100, homeOwnRate: 91, medianAge: 43.8, households: 1400 },
+        { zip: '21794', name: 'West Friendship', income: 195000, homeValue: 780000, lat: 39.3000, lon: -76.9500, homeOwnRate: 92, medianAge: 44.5, households: 1800 },
+        { zip: '21163', name: 'Woodstock', income: 142000, homeValue: 580000, lat: 39.3300, lon: -76.8700, homeOwnRate: 86, medianAge: 41.5, households: 3200 },
+        { zip: '21036', name: 'Dayton', income: 215000, homeValue: 920000, lat: 39.2400, lon: -76.9900, homeOwnRate: 94, medianAge: 46.0, households: 1500 },
+        { zip: '21765', name: 'Lisbon', income: 185000, homeValue: 750000, lat: 39.3300, lon: -77.0600, homeOwnRate: 92, medianAge: 44.8, households: 1100 },
+
+        // --- MONTGOMERY COUNTY ---
+        { zip: '20814', name: 'Bethesda (Central)', income: 185000, homeValue: 920000, lat: 38.9950, lon: -77.1000, homeOwnRate: 62, medianAge: 40.5, households: 18000 },
+        { zip: '20817', name: 'Bethesda (West)', income: 210000, homeValue: 1100000, lat: 39.0100, lon: -77.1500, homeOwnRate: 85, medianAge: 44.2, households: 14000 },
+        { zip: '20815', name: 'Chevy Chase', income: 235000, homeValue: 1250000, lat: 38.9800, lon: -77.0700, homeOwnRate: 75, medianAge: 45.0, households: 9500 },
+        { zip: '20854', name: 'Potomac', income: 250000, homeValue: 1300000, lat: 39.0200, lon: -77.2000, homeOwnRate: 90, medianAge: 46.5, households: 16000 },
+        { zip: '20850', name: 'Rockville (West)', income: 132000, homeValue: 650000, lat: 39.0840, lon: -77.1528, homeOwnRate: 66, medianAge: 39.2, households: 28000 },
+        { zip: '20852', name: 'North Bethesda', income: 115000, homeValue: 580000, lat: 39.0400, lon: -77.1100, homeOwnRate: 55, medianAge: 37.8, households: 20000 },
+        { zip: '20853', name: 'Rockville (Aspen Hill)', income: 125000, homeValue: 550000, lat: 39.0900, lon: -77.1000, homeOwnRate: 82, medianAge: 41.5, households: 11000 },
+        { zip: '20878', name: 'Gaithersburg (West)', income: 125000, homeValue: 600000, lat: 39.1200, lon: -77.2200, homeOwnRate: 68, medianAge: 38.5, households: 22000 },
+        { zip: '20877', name: 'Gaithersburg (Central)', income: 85000, homeValue: 420000, lat: 39.1400, lon: -77.1900, homeOwnRate: 55, medianAge: 35.8, households: 15000 },
+        { zip: '20879', name: 'Gaithersburg (East)', income: 105000, homeValue: 480000, lat: 39.1600, lon: -77.1700, homeOwnRate: 65, medianAge: 37.5, households: 14000 },
+        { zip: '20874', name: 'Germantown (South)', income: 105000, homeValue: 480000, lat: 39.1600, lon: -77.2800, homeOwnRate: 65, medianAge: 36.4, households: 24000 },
+        { zip: '20876', name: 'Germantown (North)', income: 98000, homeValue: 420000, lat: 39.2000, lon: -77.2500, homeOwnRate: 62, medianAge: 35.5, households: 18000 },
+        { zip: '20901', name: 'Silver Spring (East)', income: 110000, homeValue: 550000, lat: 39.0234, lon: -77.0115, homeOwnRate: 71, medianAge: 37.6, households: 16000 },
+        { zip: '20902', name: 'Silver Spring (Wheaton)', income: 95000, homeValue: 480000, lat: 39.0400, lon: -77.0400, homeOwnRate: 65, medianAge: 36.8, households: 17500 },
+        { zip: '20904', name: 'Silver Spring (White Oak)', income: 102000, homeValue: 490000, lat: 39.0600, lon: -76.9900, homeOwnRate: 68, medianAge: 38.2, households: 21000 },
+        { zip: '20906', name: 'Silver Spring (Aspen Hill)', income: 92000, homeValue: 440000, lat: 39.0800, lon: -77.0500, homeOwnRate: 62, medianAge: 39.5, households: 26000 },
+        { zip: '20910', name: 'Silver Spring (Dtwn)', income: 95000, homeValue: 520000, lat: 38.9900, lon: -77.0200, homeOwnRate: 45, medianAge: 34.5, households: 21000 },
+        { zip: '20912', name: 'Takoma Park', income: 88000, homeValue: 490000, lat: 38.9800, lon: -77.0000, homeOwnRate: 48, medianAge: 35.8, households: 10000 },
+        { zip: '20832', name: 'Olney', income: 165000, homeValue: 680000, lat: 39.1500, lon: -77.0600, homeOwnRate: 86, medianAge: 42.8, households: 9000 },
+        { zip: '20872', name: 'Damascus', income: 135000, homeValue: 540000, lat: 39.2800, lon: -77.2000, homeOwnRate: 88, medianAge: 40.5, households: 6000 },
+        { zip: '20837', name: 'Poolesville', income: 185000, homeValue: 720000, lat: 39.1400, lon: -77.4100, homeOwnRate: 90, medianAge: 43.5, households: 2200 },
+        { zip: '20886', name: 'Montgomery Village', income: 92000, homeValue: 390000, lat: 39.1700, lon: -77.2000, homeOwnRate: 62, medianAge: 37.0, households: 14000 },
+        { zip: '20866', name: 'Burtonsville', income: 118000, homeValue: 480000, lat: 39.1000, lon: -76.9300, homeOwnRate: 78, medianAge: 38.5, households: 4500 },
+        { zip: '20816', name: 'Bethesda (Little Falls)', income: 225000, homeValue: 1150000, lat: 38.9500, lon: -77.1200, homeOwnRate: 82, medianAge: 45.5, households: 6000 },
+        { zip: '20895', name: 'Kensington', income: 155000, homeValue: 690000, lat: 39.0200, lon: -77.0700, homeOwnRate: 80, medianAge: 42.1, households: 7000 },
+        { zip: '20871', name: 'Clarksburg', income: 142000, homeValue: 580000, lat: 39.2400, lon: -77.2800, homeOwnRate: 85, medianAge: 36.8, households: 9500 },
+        { zip: '20882', name: 'Gaithersburg (Laytonsville)', income: 165000, homeValue: 710000, lat: 39.2100, lon: -77.1300, homeOwnRate: 90, medianAge: 44.0, households: 4000 },
+        { zip: '20833', name: 'Brookeville', income: 175000, homeValue: 750000, lat: 39.1800, lon: -77.0500, homeOwnRate: 92, medianAge: 45.2, households: 2500 },
+        { zip: '20851', name: 'Rockville (Twinbrook)', income: 95000, homeValue: 460000, lat: 39.0600, lon: -77.1200, homeOwnRate: 60, medianAge: 37.5, households: 6500 },
+        { zip: '20903', name: 'Silver Spring (Hillandale)', income: 88000, homeValue: 420000, lat: 39.0200, lon: -76.9800, homeOwnRate: 64, medianAge: 36.5, households: 10500 },
+        { zip: '20905', name: 'Silver Spring (Colesville)', income: 115000, homeValue: 510000, lat: 39.0800, lon: -77.0000, homeOwnRate: 78, medianAge: 40.2, households: 9500 },
+        { zip: '20818', name: 'Cabin John', income: 235000, homeValue: 1250000, lat: 38.9700, lon: -77.1500, homeOwnRate: 85, medianAge: 46.5, households: 1800 },
+        { zip: '20812', name: 'Glen Echo', income: 215000, homeValue: 1100000, lat: 38.9600, lon: -77.1300, homeOwnRate: 82, medianAge: 45.0, households: 800 },
+        { zip: '20855', name: 'Derwood', income: 125000, homeValue: 560000, lat: 39.1400, lon: -77.1500, homeOwnRate: 80, medianAge: 41.5, households: 9000 },
+        { zip: '20860', name: 'Sandy Spring', income: 145000, homeValue: 620000, lat: 39.1400, lon: -77.0200, homeOwnRate: 86, medianAge: 45.5, households: 1200 },
+        { zip: '20861', name: 'Ashton', income: 155000, homeValue: 650000, lat: 39.1500, lon: -77.0000, homeOwnRate: 88, medianAge: 44.8, households: 1500 },
+        { zip: '20862', name: 'Brinklow', income: 135000, homeValue: 580000, lat: 39.1600, lon: -77.0100, homeOwnRate: 85, medianAge: 43.5, households: 800 },
+        { zip: '20868', name: 'Spencerville', income: 142000, homeValue: 590000, lat: 39.1100, lon: -76.9700, homeOwnRate: 87, medianAge: 44.0, households: 1100 },
+        { zip: '20839', name: 'Beallsville', income: 165000, homeValue: 680000, lat: 39.1800, lon: -77.4100, homeOwnRate: 90, medianAge: 46.2, households: 900 },
+        { zip: '20841', name: 'Boyds', income: 175000, homeValue: 710000, lat: 39.1900, lon: -77.3100, homeOwnRate: 92, medianAge: 45.8, households: 3500 },
+        { zip: '20842', name: 'Dickerson', income: 155000, homeValue: 650000, lat: 39.2200, lon: -77.4200, homeOwnRate: 88, medianAge: 46.0, households: 1200 },
+        { zip: '20838', name: 'Barnesville', income: 145000, homeValue: 620000, lat: 39.2200, lon: -77.3800, homeOwnRate: 85, medianAge: 45.5, households: 500 },
+        { zip: '20875', name: 'Washington Grove', income: 125000, homeValue: 540000, lat: 39.1300, lon: -77.1700, homeOwnRate: 82, medianAge: 42.5, households: 700 },
+
+        // --- ANNE ARUNDEL COUNTY ---
+        { zip: '21401', name: 'Annapolis (Central)', income: 122000, homeValue: 610000, lat: 38.9780, lon: -76.5310, homeOwnRate: 64, medianAge: 40.1, households: 19000 },
+        { zip: '21403', name: 'Annapolis (Eastport)', income: 110000, homeValue: 550000, lat: 38.9600, lon: -76.4800, homeOwnRate: 60, medianAge: 39.5, households: 14000 },
+        { zip: '21114', name: 'Crofton', income: 135000, homeValue: 520000, lat: 39.0100, lon: -76.6800, homeOwnRate: 82, medianAge: 39.5, households: 10500 },
+        { zip: '21113', name: 'Odenton', income: 118000, homeValue: 460000, lat: 39.0800, lon: -76.7000, homeOwnRate: 75, medianAge: 36.8, households: 15000 },
+        { zip: '21146', name: 'Severna Park', income: 160000, homeValue: 700000, lat: 39.0700, lon: -76.5500, homeOwnRate: 88, medianAge: 42.1, households: 12000 },
+        { zip: '21122', name: 'Pasadena', income: 105000, homeValue: 430000, lat: 39.1100, lon: -76.5300, homeOwnRate: 80, medianAge: 38.9, households: 21000 },
+        { zip: '21060', name: 'Glen Burnie (North)', income: 82000, homeValue: 310000, lat: 39.1700, lon: -76.6200, homeOwnRate: 68, medianAge: 37.5, households: 14000 },
+        { zip: '21061', name: 'Glen Burnie (South)', income: 86000, homeValue: 330000, lat: 39.1500, lon: -76.6300, homeOwnRate: 70, medianAge: 38.0, households: 18000 },
+        { zip: '21012', name: 'Arnold', income: 142000, homeValue: 560000, lat: 39.0300, lon: -76.5000, homeOwnRate: 85, medianAge: 41.0, households: 8500 },
+        { zip: '21037', name: 'Edgewater', income: 128000, homeValue: 520000, lat: 38.9400, lon: -76.5500, homeOwnRate: 82, medianAge: 43.5, households: 11000 },
+        { zip: '21032', name: 'Crownsville', income: 155000, homeValue: 650000, lat: 39.0300, lon: -76.6000, homeOwnRate: 88, medianAge: 44.5, households: 3500 },
+        { zip: '20755', name: 'Fort Meade', income: 78000, homeValue: 350000, lat: 39.1000, lon: -76.7300, homeOwnRate: 15, medianAge: 25.5, households: 2500 },
+        { zip: '20724', name: 'Laurel (AA County)', income: 94000, homeValue: 380000, lat: 39.1000, lon: -76.8100, homeOwnRate: 65, medianAge: 36.5, households: 8000 },
+        { zip: '21144', name: 'Severn', income: 115000, homeValue: 460000, lat: 39.1300, lon: -76.6900, homeOwnRate: 78, medianAge: 37.0, households: 13000 },
+        { zip: '21054', name: 'Gambrills', income: 142000, homeValue: 540000, lat: 39.0600, lon: -76.6700, homeOwnRate: 86, medianAge: 40.5, households: 3800 },
+        { zip: '20751', name: 'Deale', income: 105000, homeValue: 430000, lat: 38.7800, lon: -76.5500, homeOwnRate: 82, medianAge: 44.2, households: 2200 },
+        { zip: '21090', name: 'Linthicum Heights', income: 98000, homeValue: 375000, lat: 39.2000, lon: -76.6500, homeOwnRate: 76, medianAge: 41.5, households: 4500 },
+        { zip: '21108', name: 'Millersville', income: 135000, homeValue: 510000, lat: 39.0700, lon: -76.6200, homeOwnRate: 84, medianAge: 40.8, households: 7000 },
+        { zip: '21076', name: 'Hanover', income: 105000, homeValue: 420000, lat: 39.1800, lon: -76.7200, homeOwnRate: 68, medianAge: 35.8, households: 12000 },
+        { zip: '21077', name: 'Harmans', income: 95000, homeValue: 380000, lat: 39.1600, lon: -76.6800, homeOwnRate: 65, medianAge: 37.0, households: 1500 },
+        { zip: '21240', name: 'BWI Airport', income: 70000, homeValue: 300000, lat: 39.1800, lon: -76.6600, homeOwnRate: 50, medianAge: 35.0, households: 500 },
+        { zip: '21062', name: 'Glen Burnie', income: 81000, homeValue: 310000, lat: 39.1400, lon: -76.6000, homeOwnRate: 66, medianAge: 37.8, households: 10000 },
+        { zip: '21035', name: 'Davidsonville', income: 175000, homeValue: 710000, lat: 38.9200, lon: -76.6300, homeOwnRate: 92, medianAge: 45.1, households: 3200 },
+        { zip: '21140', name: 'Riva', income: 145000, homeValue: 580000, lat: 38.9400, lon: -76.5800, homeOwnRate: 88, medianAge: 44.0, households: 2500 },
+        { zip: '21409', name: 'Annapolis (Broadneck)', income: 135000, homeValue: 550000, lat: 39.0200, lon: -76.4500, homeOwnRate: 84, medianAge: 42.5, households: 11000 },
+        { zip: '21405', name: 'Annapolis (Parole)', income: 115000, homeValue: 480000, lat: 38.9600, lon: -76.5700, homeOwnRate: 65, medianAge: 39.8, households: 8000 },
+        { zip: '20711', name: 'Lothian', income: 105000, homeValue: 420000, lat: 38.8300, lon: -76.6100, homeOwnRate: 85, medianAge: 43.1, households: 2800 },
+        { zip: '20733', name: 'Churchton', income: 98000, homeValue: 390000, lat: 38.8000, lon: -76.5300, homeOwnRate: 82, medianAge: 44.5, households: 1500 },
+        { zip: '20758', name: 'Friendship', income: 102000, homeValue: 410000, lat: 38.7300, lon: -76.5500, homeOwnRate: 84, medianAge: 45.0, households: 1100 },
+        { zip: '20764', name: 'Shady Side', income: 92000, homeValue: 360000, lat: 38.8300, lon: -76.5100, homeOwnRate: 78, medianAge: 42.8, households: 2500 },
+        { zip: '20765', name: 'Galesville', income: 95000, homeValue: 385000, lat: 38.8400, lon: -76.5400, homeOwnRate: 80, medianAge: 43.5, households: 900 },
+        { zip: '20776', name: 'Harwood', income: 115000, homeValue: 460000, lat: 38.8600, lon: -76.6100, homeOwnRate: 86, medianAge: 44.2, households: 1800 },
+        { zip: '20778', name: 'West River', income: 125000, homeValue: 490000, lat: 38.8400, lon: -76.5800, homeOwnRate: 88, medianAge: 45.1, households: 1200 },
+        { zip: '20779', name: 'Tracys Landing', income: 118000, homeValue: 470000, lat: 38.7600, lon: -76.5600, homeOwnRate: 85, medianAge: 44.8, households: 800 },
+
+        // --- PRINCE GEORGE'S COUNTY (Select Highlights for border continuity) ---
+        { zip: '20701', name: 'Annapolis Junction', income: 105000, homeValue: 420000, lat: 39.1200, lon: -76.7800, homeOwnRate: 65, medianAge: 35.5, households: 1500 },
+        { zip: '20705', name: 'Beltsville', income: 84000, homeValue: 360000, lat: 39.0400, lon: -76.9100, homeOwnRate: 62, medianAge: 36.8, households: 10000 },
+        { zip: '20707', name: 'Laurel', income: 88000, homeValue: 375000, lat: 39.1000, lon: -76.8500, homeOwnRate: 60, medianAge: 37.2, households: 12500 },
+        { zip: '20708', name: 'Laurel (South)', income: 92000, homeValue: 390000, lat: 39.0700, lon: -76.8400, homeOwnRate: 64, medianAge: 36.5, households: 11000 },
+        { zip: '20740', name: 'College Park', income: 72000, homeValue: 350000, lat: 38.9900, lon: -76.9300, homeOwnRate: 45, medianAge: 25.8, households: 9500 },
+        { zip: '20770', name: 'Greenbelt', income: 76000, homeValue: 280000, lat: 39.0000, lon: -76.8800, homeOwnRate: 48, medianAge: 36.0, households: 11000 },
+        { zip: '20715', name: 'Bowie', income: 128000, homeValue: 490000, lat: 38.9700, lon: -76.7300, homeOwnRate: 85, medianAge: 41.2, households: 14000 },
+        { zip: '20716', name: 'Bowie (South)', income: 115000, homeValue: 460000, lat: 38.9300, lon: -76.7400, homeOwnRate: 82, medianAge: 40.5, households: 9000 },
+        { zip: '20720', name: 'Bowie (North)', income: 142000, homeValue: 530000, lat: 38.9900, lon: -76.7800, homeOwnRate: 88, medianAge: 42.0, households: 10500 },
+        { zip: '20721', name: 'Bowie (West)', income: 135000, homeValue: 510000, lat: 38.9100, lon: -76.8100, homeOwnRate: 86, medianAge: 41.5, households: 12000 },
+        { zip: '20769', name: 'Glenn Dale', income: 118000, homeValue: 470000, lat: 38.9700, lon: -76.8100, homeOwnRate: 84, medianAge: 40.8, households: 5500 },
+        { zip: '20706', name: 'Lanham', income: 98000, homeValue: 390000, lat: 38.9600, lon: -76.8500, homeOwnRate: 72, medianAge: 38.5, households: 14500 },
+        { zip: '20784', name: 'New Carrollton', income: 75000, homeValue: 320000, lat: 38.9500, lon: -76.8800, homeOwnRate: 58, medianAge: 36.2, households: 11000 },
+        { zip: '20785', name: 'Landover', income: 68000, homeValue: 290000, lat: 38.9200, lon: -76.8900, homeOwnRate: 55, medianAge: 35.8, households: 13500 },
+        { zip: '20782', name: 'Hyattsville', income: 72000, homeValue: 340000, lat: 38.9600, lon: -76.9500, homeOwnRate: 52, medianAge: 35.5, households: 12500 },
+        { zip: '20781', name: 'Hyattsville (South)', income: 68000, homeValue: 330000, lat: 38.9400, lon: -76.9400, homeOwnRate: 50, medianAge: 35.0, households: 8000 },
+        { zip: '20783', name: 'Adelphi', income: 74000, homeValue: 350000, lat: 39.0000, lon: -76.9600, homeOwnRate: 54, medianAge: 34.8, households: 11500 },
+        { zip: '20722', name: 'Brentwood', income: 72000, homeValue: 330000, lat: 38.9400, lon: -76.9500, homeOwnRate: 52, medianAge: 35.8, households: 2500 },
+        { zip: '20712', name: 'Mount Rainier', income: 75000, homeValue: 340000, lat: 38.9400, lon: -76.9600, homeOwnRate: 54, medianAge: 36.0, households: 3200 },
+        { zip: '20737', name: 'Riverdale', income: 74000, homeValue: 335000, lat: 38.9600, lon: -76.9300, homeOwnRate: 50, medianAge: 35.5, households: 4800 },
+        { zip: '20743', name: 'Capitol Heights', income: 68000, homeValue: 290000, lat: 38.8800, lon: -76.9100, homeOwnRate: 55, medianAge: 36.2, households: 11000 },
+        { zip: '20747', name: 'District Heights', income: 71000, homeValue: 300000, lat: 38.8500, lon: -76.8800, homeOwnRate: 58, medianAge: 36.5, households: 12500 },
+        { zip: '20748', name: 'Temple Hills', income: 76000, homeValue: 310000, lat: 38.8200, lon: -76.9400, homeOwnRate: 62, medianAge: 37.0, households: 14000 },
+        { zip: '20746', name: 'Suitland', income: 65000, homeValue: 280000, lat: 38.8400, lon: -76.9200, homeOwnRate: 48, medianAge: 35.8, households: 13000 },
+        { zip: '20744', name: 'Fort Washington', income: 115000, homeValue: 420000, lat: 38.7400, lon: -76.9900, homeOwnRate: 80, medianAge: 42.1, households: 16000 },
+
+        // --- BALTIMORE CITY ---
+        { zip: '21201', name: 'Downtown Baltimore', income: 72000, homeValue: 320000, lat: 39.2900, lon: -76.6200, homeOwnRate: 35, medianAge: 33.5, households: 9500 },
+        { zip: '21202', name: 'Mount Vernon/Inner Harbor', income: 68000, homeValue: 340000, lat: 39.2900, lon: -76.6000, homeOwnRate: 30, medianAge: 31.0, households: 11000 },
+        { zip: '21205', name: 'East Baltimore', income: 38000, homeValue: 120000, lat: 39.3000, lon: -76.5700, homeOwnRate: 42, medianAge: 34.5, households: 8000 },
+        { zip: '21206', name: 'Belair-Edison', income: 55000, homeValue: 185000, lat: 39.3300, lon: -76.5400, homeOwnRate: 52, medianAge: 36.2, households: 17000 },
+        { zip: '21209', name: 'Mt Washington', income: 88000, homeValue: 380000, lat: 39.3700, lon: -76.6600, homeOwnRate: 52, medianAge: 38.1, households: 11000 },
+        { zip: '21210', name: 'Roland Park', income: 115000, homeValue: 550000, lat: 39.3600, lon: -76.6300, homeOwnRate: 62, medianAge: 35.5, households: 6000 },
+        { zip: '21211', name: 'Hampden', income: 78000, homeValue: 290000, lat: 39.3300, lon: -76.6300, homeOwnRate: 48, medianAge: 33.2, households: 8500 },
+        { zip: '21212', name: 'Govans', income: 72000, homeValue: 275000, lat: 39.3600, lon: -76.6000, homeOwnRate: 55, medianAge: 36.5, households: 13000 },
+        { zip: '21213', name: 'Clifton', income: 42000, homeValue: 135000, lat: 39.3200, lon: -76.5700, homeOwnRate: 45, medianAge: 35.0, households: 12000 },
+        { zip: '21214', name: 'Hamilton', income: 68000, homeValue: 230000, lat: 39.3500, lon: -76.5600, homeOwnRate: 60, medianAge: 37.8, households: 8000 },
+        { zip: '21215', name: 'Arlington', income: 45000, homeValue: 165000, lat: 39.3400, lon: -76.6800, homeOwnRate: 45, medianAge: 36.2, households: 19000 },
+        { zip: '21216', name: 'Walbrook', income: 41000, homeValue: 140000, lat: 39.3100, lon: -76.6700, homeOwnRate: 46, medianAge: 36.0, households: 11000 },
+        { zip: '21217', name: 'Druid Hill', income: 43000, homeValue: 155000, lat: 39.3100, lon: -76.6400, homeOwnRate: 35, medianAge: 35.5, households: 12000 },
+        { zip: '21218', name: 'Charles Village', income: 55000, homeValue: 240000, lat: 39.3200, lon: -76.6000, homeOwnRate: 40, medianAge: 30.5, households: 16000 },
+        { zip: '21223', name: 'Franklin Square', income: 38000, homeValue: 110000, lat: 39.2800, lon: -76.6400, homeOwnRate: 38, medianAge: 35.0, households: 9000 },
+        { zip: '21224', name: 'Canton', income: 102000, homeValue: 410000, lat: 39.2800, lon: -76.5700, homeOwnRate: 58, medianAge: 31.8, households: 16000 },
+        { zip: '21229', name: 'Carroll', income: 52000, homeValue: 180000, lat: 39.2800, lon: -76.6800, homeOwnRate: 52, medianAge: 36.5, households: 15000 },
+        { zip: '21230', name: 'Fed Hill/Locust Pt', income: 92000, homeValue: 390000, lat: 39.2700, lon: -76.6100, homeOwnRate: 50, medianAge: 32.5, households: 14000 },
+        { zip: '21231', name: 'Fells Point', income: 95000, homeValue: 380000, lat: 39.2800, lon: -76.5900, homeOwnRate: 45, medianAge: 34.0, households: 7000 },
+        { zip: '21239', name: 'Northwood', income: 64000, homeValue: 210000, lat: 39.3600, lon: -76.5800, homeOwnRate: 65, medianAge: 37.5, households: 10000 },
+        { zip: '21225', name: 'Brooklyn', income: 52000, homeValue: 210000, lat: 39.2300, lon: -76.6000, homeOwnRate: 48, medianAge: 35.5, households: 11000 },
+        { zip: '21226', name: 'Curtis Bay', income: 58000, homeValue: 225000, lat: 39.2000, lon: -76.5800, homeOwnRate: 55, medianAge: 36.2, households: 4500 },
+        { zip: '21250', name: 'UMBC', income: 65000, homeValue: 280000, lat: 39.2500, lon: -76.7100, homeOwnRate: 40, medianAge: 25.5, households: 1800 },
+        { zip: '21219', name: 'Sparrows Point (City Edge)', income: 68000, homeValue: 275000, lat: 39.2300, lon: -76.4800, homeOwnRate: 71, medianAge: 42.1, households: 4500 }
     ];
 
     let currentCenter = { lat: 39.5162, lon: -76.6150, zip: '21131' };
@@ -497,18 +822,15 @@
         const qualifiedHouseholds = qualifiedNodes.reduce((sum, d) => sum + d.households, 0);
         document.getElementById('match-count').innerText = qualifiedHouseholds.toLocaleString();
 
-        // --- NEW: CALCULATE AND INJECT AGGREGATE DENSITY STATS ---
         const countQualified = qualifiedNodes.length;
         let avgIncome = 0, avgValue = 0, avgAge = 0;
         let minInc = 0, maxInc = 0, minVal = 0, maxVal = 0, minAge = 0, maxAge = 0;
 
         if (countQualified > 0) {
-            // Averages based on qualified targets
             avgIncome = qualifiedNodes.reduce((sum, d) => sum + d.income, 0) / countQualified;
             avgValue = qualifiedNodes.reduce((sum, d) => sum + d.homeValue, 0) / countQualified;
             avgAge = qualifiedNodes.reduce((sum, d) => sum + d.medianAge, 0) / countQualified;
 
-            // Ranges
             minInc = Math.min(...qualifiedNodes.map(d => d.income));
             maxInc = Math.max(...qualifiedNodes.map(d => d.income));
             minVal = Math.min(...qualifiedNodes.map(d => d.homeValue));
@@ -539,7 +861,6 @@
                 <div class="stat-sub">Range: ${countQualified ? minAge.toFixed(1) : '0'} - ${countQualified ? maxAge.toFixed(1) : '0'} yrs</div>
             </div>
         `;
-        // ---------------------------------------------------------
 
         const hoverLabels = visibleNodes.map(d => {
             const status = d.qualified ? '<b>🔥 HIGH DENSITY MATCH</b>' : '⚪ Screened Out';
@@ -570,12 +891,12 @@
 
         const xAxisMax = Math.max(incomeThreshold + 25000, 250000);
         const scatterLayout = {
-            xaxis: { title: 'Median Household Income ($)', range: [40000, xAxisMax], tickformat: '$,', gridcolor: '#f1f5f9', zeroline: false },
-            yaxis: { title: 'Median Home Value ($)', range: [200000, 1000000], tickformat: '$,', gridcolor: '#f1f5f9', zeroline: false },
+            xaxis: { title: 'Median Household Income ($)', range: [35000, xAxisMax], tickformat: '$,', gridcolor: '#f1f5f9', zeroline: false },
+            yaxis: { title: 'Median Home Value ($)', range: [100000, 1400000], tickformat: '$,', gridcolor: '#f1f5f9', zeroline: false },
             shapes: [
-                { type: 'rect', x0: incomeThreshold, y0: homeThreshold, x1: xAxisMax, y1: 1000000, fillcolor: 'rgba(245, 158, 11, 0.05)', line: { width: 0 } },
-                { type: 'line', x0: incomeThreshold, y0: 200000, x1: incomeThreshold, y1: 1000000, line: { color: '#e74c3c', width: 1.5, dash: 'dash' } },
-                { type: 'line', x0: 40000, y0: homeThreshold, x1: xAxisMax, y1: homeThreshold, line: { color: '#e74c3c', width: 1.5, dash: 'dash' } }
+                { type: 'rect', x0: incomeThreshold, y0: homeThreshold, x1: xAxisMax, y1: 1500000, fillcolor: 'rgba(245, 158, 11, 0.05)', line: { width: 0 } },
+                { type: 'line', x0: incomeThreshold, y0: 100000, x1: incomeThreshold, y1: 1500000, line: { color: '#e74c3c', width: 1.5, dash: 'dash' } },
+                { type: 'line', x0: 35000, y0: homeThreshold, x1: xAxisMax, y1: homeThreshold, line: { color: '#e74c3c', width: 1.5, dash: 'dash' } }
             ],
             plot_bgcolor: '#ffffff', paper_bgcolor: '#ffffff', hovermode: 'closest',
             margin: { t: 15, b: 50, l: 70, r: 20 }, font: { family: 'Segoe UI, sans-serif' }
@@ -642,7 +963,5 @@
     updateDashboard();
 </script>
 
-</body>
-</html>
 </body>
 </html>
